@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>Decathlon PWA</title>
+		<link rel="icon" href="https://www.decathlon.fr/render/favicon-96x96.1d72df8f08484c5c2852.png" />
+		<link rel="manifest" cross-origins="use-credentials" href="manifest.json" />
+		<link rel="stylesheet" href="styles.css" />
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap" rel="stylesheet">
+		<meta name="viewport" content="width=device-width" />
+		<meta name="theme-color" content="#0082C3"/>
+		<script src="https://cdn.jsdelivr.net/npm/@zerodevx/svelte-toast@0"></script>
+		<link rel="apple-touch-icon" href="/images/icons/icon-152x152.png" />
+		<script type="module" src="https://cdn.jsdelivr.net/npm/@pwabuilder/pwainstall"></script>
+		%sveltekit.head%
+	</head>
+	<script>
+		const publicVapidKey = 'BAYcVFHJQDtc1W2Tqdqv5P8K6IX6T86iXmx63bxeoBCdYHTHM49aRsEMhth34WVjuJv_JFP3ASgeACpQV9xTNK8';
+
+		/* Utility functions. */
+
+		async function postToServer(url, data) {
+		let response = await fetch(url, {
+			method: 'POST',
+			headers: {
+			'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(data)
+		});
+		}
+
+		function urlBase64ToUint8Array(base64string) {
+			const padding = '='.repeat((4 - base64string.length % 4) % 4);
+			const base64 = (base64string + padding)
+				.replace(/\-/g, '+')
+				.replace(/_/g, '/');
+		
+			const rawData = window.atob(base64);
+			const outputArray = new Uint8Array(rawData.length);
+		
+			for (let i = 0; i < rawData.length; ++i) {
+				outputArray[i] = rawData.charCodeAt(i);
+			}
+			return outputArray;
+		}
+		// Register SW, Register Push, Send Push
+		async function registerServiceWorker() {
+			await navigator.serviceWorker.register('./service-worker.js');
+		}
+
+		async function subscribeToPush() {
+			console.log("subscribeToPush");
+			const registration = await navigator.serviceWorker.getRegistration();
+			const subscription = await registration.pushManager.subscribe({
+				userVisibleOnly: true,
+				applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+			});
+			postToServer('https://192.168.0.40:3000/add-subscription', subscription);
+		}
+
+		async function getReady() {
+			/* Check if service worker is registered. */
+			
+			registerServiceWorker();
+			await subscribeToPush();
+		}
+		// Register service worker, register push, send push
+		window.addEventListener("load", async () => {
+			const registration = await navigator.serviceWorker.getRegistration();
+			if (!registration) {
+				registerServiceWorker();
+				console.log("Service worker registered");
+			} else {
+				console.log("Service worker already registered");
+			}
+			subscribeToPush();
+		});
+
+		window.addEventListener('documentReady', () => {
+			window.location.href="/user";
+		});
+	  </script>
+	<body data-sveltekit-prefetch>
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>
